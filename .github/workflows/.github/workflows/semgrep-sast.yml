@@ -1,0 +1,54 @@
+name: Semgrep SAST Security Scan
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    name: Run Semgrep SAST
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Install Semgrep
+        run: |
+          pip3 install semgrep
+          semgrep --version
+          
+      - name: Run Semgrep Security Scan
+        continue-on-error: true
+        run: |
+          echo "🔍 Starting Semgrep SAST Scan..."
+          semgrep --config=p/security-audit \
+                  --config=p/owasp-top-ten \
+                  --config=p/javascript \
+                  --config=p/typescript \
+                  --json \
+                  --output=semgrep-results.json \
+                  --metrics=off || true
+          echo "✅ Scan completed"
+          
+      - name: Display Scan Results
+        run: |
+          echo "=========================================="
+          echo "📊 SEMGREP SAST SCAN RESULTS"
+          echo "=========================================="
+          if [ -f semgrep-results.json ]; then
+            echo "✅ Results file created"
+            cat semgrep-results.json | head -50
+          else
+            echo "❌ No results file"
+          fi
+          
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-results
+          path: semgrep-results.json
